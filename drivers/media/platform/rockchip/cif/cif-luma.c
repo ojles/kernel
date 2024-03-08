@@ -232,9 +232,6 @@ rkcif_stats_send_luma(struct rkcif_luma_vdev *vdev,
 	struct rkisp_isp2x_luma_buffer *cur_stat_buf;
 	struct rkcif_buffer *cur_buf = NULL;
 	u32 i, j;
-    v4l2_err(vdev->vnode.vdev.v4l2_dev,
-             "Consti10:rkcif_stats_send_luma\n");
-
 
 	spin_lock(&vdev->rd_lock);
 	/* get one empty buffer */
@@ -273,7 +270,6 @@ rkcif_stats_send_luma(struct rkcif_luma_vdev *vdev,
 			      sizeof(struct rkisp_isp2x_luma_buffer));
 	cur_buf->vb.sequence = cur_frame_id;
 	cur_buf->vb.vb2_buf.timestamp = work->timestamp;
-    // Consti10
 	vb2_buffer_done(&cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 }
 
@@ -402,8 +398,6 @@ unlock:
 void rkcif_start_luma(struct rkcif_luma_vdev *luma_vdev, const struct cif_input_fmt *cif_fmt_in)
 {
 	u32 bayer = 0;
-    v4l2_err(luma_vdev->vnode.vdev.v4l2_dev,
-             "Consti10:rkcif_start_luma\n");
 
 	if (cif_fmt_in->fmt_type != CIF_FMT_TYPE_RAW)
 		return;
@@ -440,8 +434,6 @@ void rkcif_stop_luma(struct rkcif_luma_vdev *luma_vdev)
 {
 	rkcif_write_register(luma_vdev->cifdev, CIF_REG_Y_STAT_CONTROL, 0x0);
 	luma_vdev->enable = false;
-    v4l2_err(luma_vdev->vnode.vdev.v4l2_dev,
-             "Consti10:rkcif_stop_luma\n");
 }
 
 static void rkcif_init_luma_vdev(struct rkcif_luma_vdev *luma_vdev)

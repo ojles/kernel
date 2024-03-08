@@ -446,8 +446,6 @@ struct rkcif_stream {
 	bool				is_line_inten;
 	bool				is_can_stop;
 	bool				is_buf_active;
-    // Consti10
-    int countCallRkcifVbDoneOneframe;
 };
 
 struct rkcif_lvds_subdev {

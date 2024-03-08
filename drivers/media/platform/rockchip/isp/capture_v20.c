@@ -1070,32 +1070,16 @@ static void sp_disable_mi(struct rkisp_stream *stream)
 	mi_ctrl_spyuv_disable(base);
 }
 
-//Consti10
-static u64 __maybe_unused timeval_to_nsec(struct timeval* t) {
-    return t->tv_sec * 1000000000 + t->tv_usec * 1000;
-}
-
 static void update_dmatx_v2(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	void __iomem *base = dev->base_addr;
 	struct rkisp_dummy_buffer *buf = NULL;
 	u8 index;
-    u64 tmp;
-    u64 delayNs;
-
-    v4l2_dbg(1, rkisp_debug,&dev->v4l2_dev,
-             "Consti10:update_dmatx_v2(0): stream->next_buf?:%s\n",stream->next_buf ? "y":"n");
 
 	if (stream->next_buf) {
 		mi_set_y_addr(stream,
 			      stream->next_buf->buff_addr[RKISP_PLANE_Y]);
-        //tmp= timeval_to_nsec(&stream->next_buf->vb.vb2_buf.timestamp);
-        tmp= stream->next_buf->vb.vb2_buf.timestamp;
-        delayNs=ktime_get_ns()-tmp;
-        //v4l2_dbg(1, rkisp_debug,&dev->v4l2_dev,
-        //         "Consti10:stream->next_buf: sequence: %d index: %d timestamp:%lld delay:%lld (ns)\n",
-        //         stream->next_buf->vb.sequence,stream->next_buf->vb.vb2_buf.index,tmp,delayNs);
 	} else {
 		if (stream->id == RKISP_STREAM_DMATX0)
 			index = dev->hdr.index[HDR_DMA0];
@@ -1120,7 +1104,7 @@ static void update_dmatx_v2(struct rkisp_stream *stream)
 			mi_set_y_addr(stream, buf->dma_addr);
 	}
 	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
-		 "%s (20) stream:%d Y:0x%x SHD:0x%x\n",
+		 "%s stream:%d Y:0x%x SHD:0x%x\n",
 		 __func__, stream->id,
 		 readl(base + stream->config->mi.y_base_ad_init),
 		 readl(base + stream->config->mi.y_base_ad_shd));
@@ -1252,7 +1236,6 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 	u32 numerator = sensor->fi.interval.numerator;
 	u64 l_ts, m_ts, s_ts;
 	int ret, max_dma, fps = -1, time = 30000000;
-    v4l2_dbg(1,rkisp_debug,&isp_dev->v4l2_dev,"Consti10:rdbk_frame_end_begin()\n");
 
 	if (stream->id != RKISP_STREAM_DMATX2)
 		return;
@@ -1348,19 +1331,12 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 			goto RDBK_FRM_UNMATCH;
 		}
 	} else {
-        // think this is called when we do no HDR
-        struct vb2_v4l2_buffer *vb_done=&cap->rdbk_buf[RDBK_S]->vb;
-        u64 delay=ktime_get_ns()-vb_done->vb2_buf.timestamp;
-        v4l2_dbg(1,rkisp_debug,&isp_dev->v4l2_dev,"Consti10:YYY::rdbk_frame_end sequence: %d idx: %d timestamp: %lld delay: %lld\n",
-                 vb_done->sequence,vb_done->vb2_buf.index,vb_done->vb2_buf.timestamp,delay);
-        //
 		vb2_buffer_done(&cap->rdbk_buf[RDBK_S]->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}
 
 	cap->rdbk_buf[RDBK_L] = NULL;
 	cap->rdbk_buf[RDBK_M] = NULL;
 	cap->rdbk_buf[RDBK_S] = NULL;
-    v4l2_dbg(1,rkisp_debug,&isp_dev->v4l2_dev,"Consti10:rdbk_frame_end_end()\n");
 	return;
 
 RDBK_FRM_UNMATCH:
@@ -1390,7 +1366,6 @@ static int mi_frame_end(struct rkisp_stream *stream)
 	unsigned long lock_flags = 0;
 	u64 ns = 0;
 	int i = 0;
-    v4l2_dbg(1,rkisp_debug,&dev->v4l2_dev,"Consti10:mi_frame_end_begin()\n");
 
 	if (!stream->next_buf && stream->streaming &&
 	    dev->dmarx_dev.trigger == T_MANUAL &&
@@ -1428,11 +1403,8 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		stream->dbg.interval = ns - stream->dbg.timestamp;
 		stream->dbg.timestamp = ns;
 		stream->dbg.id = stream->curr_buf->vb.sequence;
-		if (stream->id == RKISP_STREAM_MP || stream->id == RKISP_STREAM_SP){
-            stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
-            v4l2_dbg(1,rkisp_debug,&dev->v4l2_dev,"Consti10:mi_frame_end: delay %d\n",dev->isp_sdev.dbg.delay);
-        }
-
+		if (stream->id == RKISP_STREAM_MP || stream->id == RKISP_STREAM_SP)
+			stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
 
 		if (is_rdbk_stream(stream) &&
 		    dev->dmarx_dev.trigger == T_MANUAL) {
@@ -1459,11 +1431,6 @@ static int mi_frame_end(struct rkisp_stream *stream)
 				cap->rdbk_buf[RDBK_S] = stream->curr_buf;
 				rdbk_frame_end(stream);
 			} else {
-                // weird one
-                u64 delay=ktime_get_ns()-vb2_buf->timestamp;
-                v4l2_dbg(1,rkisp_debug,&dev->v4l2_dev,"Consti10:YYY::mi_frame_endX: idx: %d timestamp: %lld delay: %lld\n",
-                         vb2_buf->index,vb2_buf->timestamp,delay);
-                //
 				vb2_buffer_done(vb2_buf, VB2_BUF_STATE_DONE);
 			}
 		} else {
@@ -1475,11 +1442,6 @@ static int mi_frame_end(struct rkisp_stream *stream)
 				stream->curr_buf->dev_id = dev->dev_id;
 				rkisp_bridge_save_spbuf(dev, stream->curr_buf);
 			} else {
-                // weird one
-                u64 delay=ktime_get_ns()-vb2_buf->timestamp;
-                v4l2_dbg(1,rkisp_debug,&dev->v4l2_dev,"Consti10:YYY::mi_frame_endY: idx: %d timestamp: %lld delay: %lld\n",
-                         vb2_buf->index,vb2_buf->timestamp,delay);
-                //
 				vb2_buffer_done(vb2_buf, VB2_BUF_STATE_DONE);
 			}
 		}
@@ -1531,7 +1493,6 @@ static int mi_frame_end(struct rkisp_stream *stream)
 	if (interlaced)
 		stream->u.sp.field_rec = stream->u.sp.field;
 
-    v4l2_dbg(1,rkisp_debug,&dev->v4l2_dev,"Consti10:mi_frame_end_end()\n");
 	return 0;
 }
 

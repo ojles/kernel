@@ -302,23 +302,11 @@ static void vir_cpy_image(struct work_struct *work)
 		}
 		vir->curr_buf->vb.sequence = src_buf->vb.sequence;
 		vir->curr_buf->vb.vb2_buf.timestamp = src_buf->vb.vb2_buf.timestamp;
-        {
-            struct vb2_v4l2_buffer *vb_done=&vir->curr_buf->vb;
-            v4l2_dbg(1, rkispp_debug,&vir->isppdev->v4l2_dev,"Consti10:YYY::vir_cpy_image sequence: %d idx: %d timestamp: %lld\n",
-                     vb_done->sequence,vb_done->vb2_buf.index,vb_done->vb2_buf.timestamp);
-        }
 		vb2_buffer_done(&vir->curr_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		vir->curr_buf = NULL;
 end:
-		if (src_buf){
-            {
-                struct vb2_v4l2_buffer *vb_done=&src_buf->vb;
-                v4l2_dbg(1, rkispp_debug,&vir->isppdev->v4l2_dev,"Consti10:YYY::vir_cpy_image sequenceA: %d idx: %d timestamp: %lld\n",
-                         vb_done->sequence,vb_done->vb2_buf.index,vb_done->vb2_buf.timestamp);
-            }
-            vb2_buffer_done(&src_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
-        }
-
+		if (src_buf)
+			vb2_buffer_done(&src_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		src_buf = NULL;
 		spin_lock_irqsave(&vir->vbq_lock, lock_flags);
 		if (!list_empty(&cpy->queue)) {
@@ -421,7 +409,6 @@ static int rkispp_frame_end(struct rkispp_stream *stream, u32 state)
 	struct rkisp_ispp_reg *reg_buf = NULL;
 	unsigned long lock_flags = 0;
 	int i = 0;
-    v4l2_dbg(1, rkispp_debug,&dev->v4l2_dev,"Consti10:rkispp_frame_end_begin()\n");
 
 	if (state == FRAME_IRQ && dev->stream_vdev.is_done_early)
 		return 0;
@@ -430,14 +417,8 @@ static int rkispp_frame_end(struct rkispp_stream *stream, u32 state)
 		struct rkispp_stream *vir = &dev->stream_vdev.stream[STREAM_VIR];
 		u64 ns = dev->ispp_sdev.frame_timestamp;
 
-		if (!ns){
-            ns = ktime_get_ns();
-            //Consti10: this timestamp should not be 0
-            v4l2_dbg(1, rkispp_debug,&dev->v4l2_dev,"Consti10:rkispp_frame_end: timestamp is 0\n");
-		}else{
-            v4l2_dbg(1, rkispp_debug,&dev->v4l2_dev,"Consti10:rkispp_frame_end: timestamp is %lld\n",ns);
-            v4l2_dbg(1, rkispp_debug,&dev->v4l2_dev,"Consti10:rkispp_frame_end: delay now-ts:%lldms\n",div_u64(ktime_get_ns()-ns,1000*1000));
-		}
+		if (!ns)
+			ns = ktime_get_ns();
 
 		for (i = 0; i < fmt->mplanes; i++) {
 			u32 payload_size =
@@ -480,21 +461,10 @@ static int rkispp_frame_end(struct rkispp_stream *stream, u32 state)
 			spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
 			if (!completion_done(&dev->stream_vdev.vir_cpy.cmpl))
 				complete(&dev->stream_vdev.vir_cpy.cmpl);
-			if (!vir->streaming){
-                {
-                    struct vb2_v4l2_buffer *vb_done=&stream->curr_buf->vb;
-                    v4l2_dbg(1, rkispp_debug,&vir->isppdev->v4l2_dev,"Consti10:YYY::rkispp_frame_endA: %d idx: %d timestamp: %lld\n",
-                             vb_done->sequence,vb_done->vb2_buf.index,vb_done->vb2_buf.timestamp);
-                }
-                vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
+			if (!vir->streaming)
+				vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
 						VB2_BUF_STATE_DONE);
-            }
 		} else {
-            {
-                struct vb2_v4l2_buffer *vb_done=&stream->curr_buf->vb;
-                v4l2_dbg(1, rkispp_debug,&vir->isppdev->v4l2_dev,"Consti10:YYY::rkispp_frame_endB: %d idx: %d timestamp: %lld\n",
-                         vb_done->sequence,vb_done->vb2_buf.index,vb_done->vb2_buf.timestamp);
-            }
 			vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
 					VB2_BUF_STATE_DONE);
 		}
@@ -529,7 +499,6 @@ static int rkispp_frame_end(struct rkispp_stream *stream, u32 state)
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 
 	update_mi(stream);
-    v4l2_dbg(1, rkispp_debug,&dev->v4l2_dev,"Consti10:rkispp_frame_end_end()\n");
 	return 0;
 }
 
@@ -1529,7 +1498,6 @@ static int limit_check_scl(struct rkispp_stream *stream,
 			 "\t[width max:%d ratio max:%d min:%d]\n",
 			 stream->id - STREAM_S0, *w, *h,
 			 max_width, max_ratio, min_ratio);
-		//Consti10:TODO note: was fixed, issue was in imx415 driver itself
 		if (!try_fmt) {
 			*w = 0;
 			*h = 0;
@@ -2442,11 +2410,6 @@ static void restart_module(struct rkispp_device *dev)
 						      &vdev->tnr.list_wr);
 				} else {
 					inbuf = vdev->nr.cur_rd->priv;
-                    {
-                        struct vb2_v4l2_buffer *vb_done=&inbuf->vb;
-                        v4l2_dbg(1, rkispp_debug,&dev->v4l2_dev,"Consti10:YYY::restart_module: %d idx: %d timestamp: %lld\n",
-                                 vb_done->sequence,vb_done->vb2_buf.index,vb_done->vb2_buf.timestamp);
-                    }
 					vb2_buffer_done(&inbuf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 				}
 				vdev->nr.cur_rd = NULL;
@@ -2627,13 +2590,11 @@ static void fec_work_event(struct rkispp_device *dev,
 			dev->ispp_sdev.frame_timestamp =
 				vdev->fec.cur_rd->timestamp;
 			dev->ispp_sdev.frm_sync_seq = seq;
-            v4l2_dbg(1, rkispp_debug,&dev->v4l2_dev,"Consti10:rkispp:X1: timestamp written %lld\n",dev->ispp_sdev.frame_timestamp);
 		} else {
 			seq = vdev->nr.buf.wr[0].id;
 			dev->ispp_sdev.frame_timestamp =
 				vdev->nr.buf.wr[0].timestamp;
 			dev->ispp_sdev.frm_sync_seq = seq;
-            v4l2_dbg(1, rkispp_debug,&dev->v4l2_dev,"Consti10:rkispp:X2: timestamp written %lld\n",dev->ispp_sdev.frame_timestamp);
 		}
 
 		stream = &vdev->stream[STREAM_MB];
@@ -2786,11 +2747,6 @@ static void nr_work_event(struct rkispp_device *dev,
 							 ISPP_MODULE_TNR, is_isr);
 			} else if (stream->streaming && vdev->nr.cur_rd->priv) {
 				inbuf = vdev->nr.cur_rd->priv;
-                {
-                    struct vb2_v4l2_buffer *vb_done=&inbuf->vb;
-                    v4l2_dbg(1, rkispp_debug,&dev->v4l2_dev,"Consti10:YYY::nr_work_event: %d idx: %d timestamp: %lld\n",
-                             vb_done->sequence,vb_done->vb2_buf.index,vb_done->vb2_buf.timestamp);
-                }
 				vb2_buffer_done(&inbuf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 			}
 			vdev->nr.cur_rd = NULL;
@@ -2919,7 +2875,6 @@ static void nr_work_event(struct rkispp_device *dev,
 			if (!is_fec_en && !is_quick) {
 				dev->ispp_sdev.frame_timestamp = timestamp;
 				dev->ispp_sdev.frm_sync_seq = seq;
-                v4l2_dbg(1, rkispp_debug,&dev->v4l2_dev,"Consti10:rkispp:X3: timestamp written %lld\n",dev->ispp_sdev.frame_timestamp);
 			}
 		}
 
@@ -3079,11 +3034,6 @@ static void tnr_work_event(struct rkispp_device *dev,
 				v4l2_subdev_call(sd, video, s_rx_buffer, vdev->tnr.cur_rd, NULL);
 			} else if (stream->streaming && vdev->tnr.cur_rd->priv) {
 				inbuf = vdev->tnr.cur_rd->priv;
-                {
-                    struct vb2_v4l2_buffer *vb_done=&inbuf->vb;
-                    v4l2_dbg(1, rkispp_debug,&dev->v4l2_dev,"Consti10:YYY::tnr_work_event: %d idx: %d timestamp: %lld\n",
-                             vb_done->sequence,vb_done->vb2_buf.index,vb_done->vb2_buf.timestamp);
-                }
 				vb2_buffer_done(&inbuf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 			}
 			if (vdev->tnr.cur_rd == vdev->tnr.nxt_rd)
@@ -3126,11 +3076,6 @@ static void tnr_work_event(struct rkispp_device *dev,
 						 vdev->tnr.nxt_rd, NULL);
 			} else if (stream->streaming && vdev->tnr.nxt_rd->priv) {
 				inbuf = vdev->tnr.nxt_rd->priv;
-                {
-                    struct vb2_v4l2_buffer *vb_done=&inbuf->vb;
-                    v4l2_dbg(1, rkispp_debug,&dev->v4l2_dev,"Consti10:YYY::tnr_work_eventB: %d idx: %d timestamp: %lld\n",
-                             vb_done->sequence,vb_done->vb2_buf.index,vb_done->vb2_buf.timestamp);
-                }
 				vb2_buffer_done(&inbuf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 			}
 			vdev->tnr.nxt_rd = NULL;
